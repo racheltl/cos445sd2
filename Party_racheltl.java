@@ -2,7 +2,7 @@
 /* Names: Nsomma Alilonu, Shir Kalati, Rachel Lee                       */
 /********************************************************************** */
 import java.util.List;
-import java.util.PriorityQueue;
+// import java.util.PriorityQueue;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -39,7 +39,7 @@ public class Party_racheltl implements Party {
         if (totalBeta == 0) totalBeta = 1;
 
         // compute if we have an overwhelming majority?
-        if ((totalBeta / totalAlpha >= 2 && isBeta) || (totalAlpha / totalBeta >= 2 && !isBeta)) {
+        if (((totalBeta / totalAlpha) >= 1 && isBeta) || ((totalAlpha / totalBeta) >= 1 && !isBeta)) {
             overMaj = true;
         }
         else {
@@ -75,10 +75,29 @@ public class Party_racheltl implements Party {
         // If we are winning by an overwhelming majority (2:1 or greater), spread the blocks where we are winning more or less evenly between the districts.
         if (overwhelmingMajority) {  
             // Go through each district, adding one block, then go back and add another, until you have no more blocks left.
-            int districtNum = 0;
-            for (Block block: remaining) {        
-                districts.get(districtNum).add(block);
-                districtNum = (districtNum+1) % numDistrictsRemaining;
+            // int districtNum = 0;
+            // for (Block block: remaining) {        
+            //     districts.get(districtNum).add(block);
+            //     districtNum = (districtNum+1) % numDistrictsRemaining;
+            // }
+            
+            long[] betaSwings = new long[numDistrictsRemaining];
+
+            for (Block block : remaining) {
+              int extremum = -1;
+              for (int i = 0; i < numDistrictsRemaining; ++i) {
+                List<Block> district = districts.get(i);
+                if (district.size() == districtSize) continue;
+                if (extremum == -1) extremum = i;
+                // we swing beta and this is the most alpha blockyet
+                if (block.betaSwing() > 0 && betaSwings[i] < betaSwings[extremum]) extremum = i;
+                // we swing alpha and this is the most beta block yet
+                if (block.betaSwing() < 0 && betaSwings[i] > betaSwings[extremum]) extremum = i;
+                // if we hit zero swing blocks then it doesn't matter anyhow
+              }
+              districts.get(extremum).add(block);
+              // pulls down the swing on the beta swing
+              betaSwings[extremum] += block.betaSwing();
             }
         }
 
@@ -107,8 +126,8 @@ public class Party_racheltl implements Party {
         // go through the districts and see if there is a district
         // where the enemy is winning by a significant margin (2/3s)
         List<Block> mostOppBlocksChamp = null; // CASE 1
-        List<Block> leastUsBlocksButWeWinChamp = null; // CASE 2
-        List<Block> mostOppBlocksChampBackup = districts.get(0); // CASE 3
+        List<Block> mostOppBlocksChampBackup = null; // CASE 2
+        List<Block> weWinButWithLeastUsBlocksChamp = districts.get(0); // CASE 3
         // mostOppBlocksChampBackup should be initialized to something so we don't
         // accidentally return null?
         
@@ -128,7 +147,7 @@ public class Party_racheltl implements Party {
                 long oppVoters = isBeta ? block.alpha() : block.beta();
                 long totalVoters = block.numVoters();
                 // does opp win for this block? (strict win or lose)
-                if ((oppVoters / totalVoters) > 1/2) {
+                if (((double)oppVoters / (double)totalVoters) > 1.0/2.0) {
                     oppBlocks++;
                 }
                 else { // i.e. WE win that block
@@ -139,7 +158,7 @@ public class Party_racheltl implements Party {
 
             // CASE 1
             // check if enemy is winning by a significant margin in this district
-            if ((oppBlocks / totalBlocks) > 2/3) { // i.e., enemy wins by significant margin
+            if (((double)oppBlocks / (double)totalBlocks) > 2.0/3.0) { // i.e., enemy wins by significant margin
                 // then we want that one!
                 // But no, we want to find the district where opp is winning by the MOST blocks
                 if (oppBlocks > oppBlocksChamp) {
@@ -147,21 +166,23 @@ public class Party_racheltl implements Party {
                     oppBlocksChamp = oppBlocks;
                 }
             }
+            
             // CASE 2
+            if (oppBlocks > ourBlocks) { // i.e. opp wins this district (could be by sig amount, maybe not)
+                if (oppBlocks > oppBlocksChamp) {
+                    mostOppBlocksChampBackup = district;
+                    oppBlocksChamp = oppBlocks;
+                }
+            }
+
+            // CASE 3
             if (ourBlocks > oppBlocks) { // i.e., we win this district
                 // we want that one! (if we couldn't find a district
                 // with enemy winning by a significant margin)
                 // But no, we want to find the district where we are winning by the least blocks
                 if (ourBlocks < ourBlocksChamp) {
-                    leastUsBlocksButWeWinChamp = district;
+                    weWinButWithLeastUsBlocksChamp = district;
                     ourBlocksChamp = ourBlocks;
-                }
-            }
-            // CASE 3
-            if (oppBlocks > ourBlocks) { // i.e. opp wins this district (could be by sig amount, maybe not)
-                if (oppBlocks > oppBlocksChamp) {
-                    mostOppBlocksChampBackup = district;
-                    oppBlocksChamp = oppBlocks;
                 }
             }
             
@@ -170,18 +191,14 @@ public class Party_racheltl implements Party {
         // CASE 1
         if (mostOppBlocksChamp != null) { return mostOppBlocksChamp; }
 
-        // if such a district does not exist, then choose 
-        // our winning district that wins with the fewest voters on our side
-        // CASE 2
-        else if (leastUsBlocksButWeWinChamp != null) { return leastUsBlocksButWeWinChamp; }
-        
-        // what if there is NO district where the enemy is winning by significant margin
-        // AND there is NO district where WE are winning?
-
-        // then, let's return the district where the opposition wins, and the district
+        // let's return the district where the opposition wins, and the district
         // where they win by the most
+        // CASE 2
+        else if (mostOppBlocksChampBackup != null) { return mostOppBlocksChampBackup; }
+ 
+        // our winning district that wins with the fewest voters on our side
         // CASE 3
-        return mostOppBlocksChampBackup;
+        return weWinButWithLeastUsBlocksChamp; 
 
     }
     
