@@ -18,11 +18,11 @@ public interface Party {
   /* Each of the following functions must terminate within the time limit of 200 ms */
 
   // must construct and return a Party based on the provided blocks. Do any initialization here.
-  public static Party New(boolean isBeta, int numDistricts, List<Block> blocks); 
-  // {
-  //   throw new RuntimeException(
-  //       "Submission did not override Party.New: " + MethodHandles.lookup().lookupClass());
-  // }
+  public static Party New(boolean isBeta, int numDistricts, List<Block> blocks) 
+  {
+    throw new RuntimeException(
+        "Submission did not override Party.New: " + MethodHandles.lookup().lookupClass());
+  }
 
   // must partition the remaining blocks into numDistricts, each with remaining.size() /
   // numDistricts elements
